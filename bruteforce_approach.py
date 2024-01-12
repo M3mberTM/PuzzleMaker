@@ -18,11 +18,40 @@ def make_image(pieces, rows, cols):
 def fitness(pieces, rows, cols):
     image = make_image(pieces, rows, cols)
 
-    corner_weight = 10
-    color_weight = 0.5
-    contour_weight = 3
-    return get_grid_likelihood(image, rows, cols) * corner_weight + compare_colors(pieces, rows, cols) * color_weight + get_contour_num(image) * contour_weight
+    return get_edges(cv.cvtColor(image, cv.COLOR_BGR2GRAY), rows, cols)
+def get_edges(image, rows, cols):
+    row_edges = []
+    col_edges = []
+    for i in range(1, rows):
+        row_edges.append(image[i * row_size:i * row_size + 2, 0:width])
 
+    for i in range(1, cols):
+        col_edges.append(image[0:height, i * col_size:i * col_size + 2])
+
+    total_weight = 0
+    for i in range(len(row_edges)):
+        edges = compare_edges(row_edges[i], 20)
+        total_weight = total_weight + edges
+
+    for i in range(len(col_edges)):
+        edges = compare_edges(cv.rotate(col_edges[i], cv.ROTATE_90_CLOCKWISE), 20)
+        total_weight = total_weight + edges
+
+    return total_weight
+
+
+def compare_edges(image, treshold: int) -> int:
+    top_edge = image[0]
+    bottom_edge = image[1]
+    edge_likelihood = 0
+    for i in range(len(top_edge)):
+        top_pixel = top_edge[i]
+        bottom_pixel = bottom_edge[i]
+        difference = top_pixel-bottom_pixel
+        if abs(difference) > treshold:
+            edge_likelihood = edge_likelihood + 1
+
+    return edge_likelihood
 
 def compare_colors(pieces, rows, cols):
     all_rows = []
@@ -114,7 +143,7 @@ def mutate(og):
     return pieces
 
 
-IMAGE = 'test_edges_color_contours.jpg'
+IMAGE = 'test.jpg'
 
 img = cv.imread("scrambledImages/" + IMAGE, cv.IMREAD_COLOR)
 width = img.shape[1]
@@ -153,7 +182,7 @@ for i in range(500):
     else:
         same_num = 0
         last_solution = top_solution
-    if same_num > 10:
+    if same_num > 100:
         break
 
     best_solutions = ranked[:100]
