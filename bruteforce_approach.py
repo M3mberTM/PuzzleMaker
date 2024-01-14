@@ -143,7 +143,7 @@ def mutate(og):
     return pieces
 
 
-IMAGE = 'test.jpg'
+IMAGE = 'test_colorEdges.jpg'
 
 img = cv.imread("scrambledImages/" + IMAGE, cv.IMREAD_COLOR)
 width = img.shape[1]

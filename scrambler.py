@@ -13,8 +13,10 @@ def shuffle_image(img, rows, cols):
 
     if height % rows != 0:
         print('Rows don\'t fully match')
+        img = img[0:len(img)-(height%rows)]
     if width % cols != 0:
         print('Cols don\'t fully match')
+        img = img[:, 0: len(img[0])-(width%cols)]
 
     for i in range(rows):
         for j in range(cols):
@@ -32,7 +34,7 @@ def shuffle_image(img, rows, cols):
 
 
 
-IMAGE = "test4.jpg"
+IMAGE = "test_colorEdges.jpg"
 rows = 10
 cols = 10
 scale_down_factor = 2
