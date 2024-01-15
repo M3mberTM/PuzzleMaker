@@ -24,7 +24,8 @@ class Piece:
     right_edge_value = [0, 0, 0]
     left_edge = []
     left_edge_value = [0, 0, 0]
-    whole_piece = []
+    overall_value = 0
+    whole_piece = [0, 0, 0]
     index = -1
 
     def __init__(self, index, piece):
@@ -35,6 +36,7 @@ class Piece:
         self.right_edge = piece[:, len(piece[0]) - 1]
         self.left_edge = piece[:, 0]
         self.get_edge_values()
+        self.overall_value = self.get_overall_piece_value(piece)
 
     def get_edge_values(self):
         b, g, r = self.get_edge_bgr_vals(self.top_edge)
@@ -57,6 +59,18 @@ class Piece:
 
         return blue_val, green_val, red_val
 
+    def get_overall_piece_value(self, piece):
+        whole_value = [0, 0, 0]
+        for row in piece:
+            for value in row:
+                whole_value[0] = whole_value[0] + value[0]
+                whole_value[1] = whole_value[1] + value[1]
+                whole_value[2] = whole_value[2] + value[2]
+        whole_value[0] = whole_value[0] / len(piece)
+        whole_value[1] = whole_value[1] / len(piece)
+        whole_value[2] = whole_value[2] / len(piece)
+        return whole_value
+
 
 class Generation:
     """
@@ -67,6 +81,8 @@ class Generation:
         compare edges
             returns likelihood of the squares being close by checking how far away the colors are from each other
             always divide the result by the number of corners since somewhere we only look at one corner
+        compare colors
+            compares the average colors of the pieces next to each other to see if they match
         sort
         returns top x solutions in format (quality_value, solution)
     """
@@ -90,12 +106,14 @@ class Generation:
         ranked_solutions.sort(key=lambda x: x[0])
         return ranked_solutions[:self.return_num]
 
-    def fitness(self, solution: list[Piece]) -> Tuple[float, list]: # TODO add more parameters by which to format pieces (average color value in the whole piece)
-        grid_likelihood_weight = 1
-        grid_likelihood = self.get_grid_likelihood(solution)
-        return grid_likelihood * grid_likelihood_weight, solution
+    def fitness(self, solution: list[Piece]) -> Tuple[float, list]:  # TODO add more parameters by which to format pieces (average color value in the whole piece)
+        edge_proximity_weight = 1
+        edge_proximity_match = self.get_edge_proximity_match(solution) * edge_proximity_weight
+        proximity_color_weight = 0.5
+        proximity_color_match = self.color_comparison(solution) * proximity_color_weight
+        return edge_proximity_match + proximity_color_match, solution
 
-    def get_grid_likelihood(self, solution) -> int:  # go through each piece and add up the compare edges values
+    def get_edge_proximity_match(self, solution) -> int:  # go through each piece and add up the compare edges values
         grid_likelihood = 0
         for index in range(len(solution)):  # pieces
             if (index + 1) % self.cols != 0:
@@ -105,8 +123,13 @@ class Generation:
                     edge_likelihood = edge_likelihood + self.compare_edge_values(solution[index].bottom_edge_value,
                                                                                  solution[
                                                                                      index + self.cols].top_edge_value)
+                    edge_likelihood = edge_likelihood + self.compare_overall_values(solution[index].overall_value,
+                                                                                    solution[
+                                                                                        index + self.cols].overall_value)
                     edge_likelihood = edge_likelihood + self.compare_edge_values(solution[index].right_edge_value,
                                                                                  solution[index + 1].left_edge_value)
+                    edge_likelihood = edge_likelihood + self.compare_overall_values(solution[index].overall_value,
+                                                                                    solution[index + 1].overall_value)
 
                     edge_likelihood = edge_likelihood / 2  # divide the edge likelihood by number of edges compared for more accurate results
 
@@ -114,32 +137,57 @@ class Generation:
 
                     edge_likelihood = edge_likelihood + self.compare_edge_values(solution[index].right_edge_value,
                                                                                  solution[index + 1].left_edge_value)
+                    edge_likelihood = edge_likelihood + self.compare_overall_values(solution[index].overall_value,
+                                                                                    solution[index + 1].overall_value)
                 grid_likelihood = grid_likelihood + edge_likelihood
 
             else:  # if it's the last element in row and is not the last element of the picture, compare only the down edge
                 if index + 1 <= self.cols * (self.rows - 1):
-
                     edge_likelihood = self.compare_edge_values(solution[index].bottom_edge_value,
                                                                solution[index + self.cols].top_edge_value)
+                    edge_likelihood = edge_likelihood + self.compare_overall_values(solution[index].overall_value,
+                                                                                    solution[
+                                                                                        index + self.cols].overall_value)
                     grid_likelihood = grid_likelihood + edge_likelihood
 
         return grid_likelihood
 
-    def compare_edges(self, edge_one: list,
-                      edge_two: list) -> int:  # compare values of pixels at the same indices to see the deviation. If it's higher than threshold, add it
-        edge_likelihood = 0
-        edge_one = np.ravel(edge_one)
-        edge_two = np.ravel(edge_two)
-        for i in range(len(edge_one)):
-            edge_difference = edge_one[i] - edge_two[i]
-            if abs(edge_difference) > self.threshold:
-                edge_likelihood = edge_likelihood + 1
-        return edge_likelihood
+    def color_comparison(self, solution) -> int:  # go through each piece and add up the overall piece color
+        color_compared = 0
+        for index in range(len(solution)):  # pieces
+            if (index + 1) % self.cols != 0:
+                proximity_value = 0
+                if index + 1 <= self.cols * (
+                        self.rows - 1):  # if it isn't the last row, compare both the bottom and right pieces
+
+                    proximity_value = proximity_value + self.compare_overall_values(solution[index].overall_value,
+                                                                                    solution[
+                                                                                        index + self.cols].overall_value)
+
+                    proximity_value = proximity_value + self.compare_overall_values(solution[index].overall_value,
+                                                                                    solution[index + 1].overall_value)
+
+                    proximity_value = proximity_value / 2  # divide the final value by the number of operations for accurate results
+
+                else:  # if the element is in last row, don't compare bottom piece as there is none
+
+                    proximity_value = proximity_value + self.compare_overall_values(solution[index].overall_value,
+                                                                                    solution[index + 1].overall_value)
+                color_compared = color_compared + proximity_value
+
+            else:  # if it's the last element in row and is not the last element of the picture, compare only the bottom piece as there is no right piece
+                if index + 1 <= self.cols * (self.rows - 1):
+                    proximity_value = self.compare_overall_values(solution[index].overall_value,
+                                                                  solution[index + self.cols].overall_value)
+                    color_compared = color_compared + proximity_value
+
+        return color_compared
 
     def compare_edge_values(self, edge_one: list, edge_two: list) -> int:
         return abs(edge_one[0] - edge_two[0] + edge_one[1] - edge_two[1] + edge_one[2] - edge_two[2])
 
-        # return abs(edge_one-edge_two) # grayscale version
+    def compare_overall_values(self, value_one, value_two):
+        return abs(value_one[0] - value_two[0] + value_one[1] - value_two[1] + value_one[2] - value_two[2])
 
 
 class Evolution:
@@ -151,6 +199,7 @@ class Evolution:
     Starting shuffler (pieces)
     - randomly shuffles the pieces, creating new solutions
     """
+
     # TODO look into improving the mutate method
     @staticmethod
     def mutate(solution: list, mutation_tolerance: int):  # mutates the element by switching two of the pieces
@@ -194,7 +243,6 @@ class GeneticAlgorithm:
     img_width = -1
     row_size = -1
     col_size = -1
-    pieces = []
     edge_threshold = 20
 
     def __init__(self, image, rows, cols, sol_num_per_generation, generation_num, edge_threshold):
@@ -229,7 +277,7 @@ class GeneticAlgorithm:
         for i in range(self.rows):
             for j in range(self.cols):
                 pieces.append(Piece(i * self.rows + j, self.image[i * self.row_size:(i + 1) * self.row_size,
-                                                            j * self.col_size:(j + 1) * self.col_size]))
+                                                       j * self.col_size:(j + 1) * self.col_size]))
         return pieces
 
     def start_generation(self):  # main functionality
@@ -249,9 +297,9 @@ class GeneticAlgorithm:
             else:
                 same_num = 0
                 last_solution = top_solution[0]
-            if same_num > 200:
-                print("No changes for over 200 generations! \nEnding the program")
-                break
+            # if same_num > 500:
+            #     print("No changes for over 500 generations! \nEnding the program")
+            #     break
 
             new_solutions = []
             mutated_weight = 0.8
@@ -271,17 +319,20 @@ class GeneticAlgorithm:
         return final_image
 
 
-IMAGE = 'test.jpg'
+IMAGE = 'black_white_test.png'
 img = cv.imread("scrambledImages/" + IMAGE, cv.IMREAD_COLOR)
 
 start_timestamp = datetime.datetime.now()
 # 10, 10, 200, 500, 20
-algorithm = GeneticAlgorithm(img, rows=10, cols=10, sol_num_per_generation=1000, generation_num=4000, edge_threshold=20)
+algorithm = GeneticAlgorithm(img, rows=9, cols=8, sol_num_per_generation=1000, generation_num=2000, edge_threshold=20)
 final_img = algorithm.start_generation()
 curr_timestamp = datetime.datetime.now()
 
 print(f"Start: {start_timestamp}\nEnd: {curr_timestamp}")
+
+scale_down_factor = 1
+final_img = cv.resize(final_img, (math.floor(final_img.shape[1] * scale_down_factor), math.floor(final_img.shape[0] * scale_down_factor)))
 cv.imshow('test', final_img)
-# cv.imwrite("unscrambledImages/" + IMAGE, final_img)
+cv.imwrite("unscrambledImages/" + IMAGE, final_img)
 cv.waitKey(0)
 cv.destroyAllWindows()
