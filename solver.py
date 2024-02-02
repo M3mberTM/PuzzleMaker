@@ -24,7 +24,7 @@ class Piece:
     right_edge_value = [0, 0, 0]
     left_edge = []
     left_edge_value = [0, 0, 0]
-    overall_value = 0
+    overall_value = [0, 0, 0]
     whole_piece = [0, 0, 0]
     index = -1
 
@@ -200,10 +200,10 @@ class Evolution:
     - randomly shuffles the pieces, creating new solutions
     """
 
-    # TODO look into improving the mutate method
+
     @staticmethod
     def mutate(solution: list, mutation_tolerance: int):  # mutates the element by switching two of the pieces
-        mutated = solution[:]
+        mutated = solution[:]  # TODO look into improving the mutate method by crossing over or make a new method for crossing over
         for _ in range(random.randint(1, mutation_tolerance)):
             a_index = random.randint(0, len(mutated) - 1)
             b_index = random.randint(0, len(mutated) - 1)
