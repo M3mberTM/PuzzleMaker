@@ -1,6 +1,18 @@
 import cv2 as cv
 import sys
 import numpy as np
+import gui
+
+
+class Image:
+    whole_image = None
+
+    def __init__(self, path, rows, cols, is_colored):
+        img = cv.imread(path, cv.IMREAD_COLOR)
+        if not is_colored:
+            img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        self.whole_image = img
+
 
 
 class Piece:
@@ -37,6 +49,44 @@ class Piece:
     def get_overall_piece_value(self):
         total_sum = np.sum(np.ravel(self.whole_piece))
         self.overall_value = total_sum / (self.whole_piece.shape[0] * self.whole_piece.shape[1])
+
+
+class Quadron:
+    """
+    - init
+        - params
+            - all corner piece match arrays
+            - main piece
+    - set_final_edges (puts the correct pieces as the final choice for this quadron)
+        - params
+            - top edge
+            - right edge
+            - bottom edge
+            - left edge
+    """
+
+    main_piece = None
+    top_edge_matches = []
+    right_edge_matches = []
+    bottom_edge_matches = []
+    left_edge_matches = []
+    top_edge_final = None
+    right_edge_final = None
+    bottom_edge_final = None
+    left_edge_final = None
+
+    def __init__(self, main_piece, top_edge_matches, right_edge_matches, bottom_edge_matches, left_edge_matches):
+        self.main_piece = main_piece
+        self.top_edge_matches = top_edge_matches
+        self.right_edge_matches = right_edge_matches
+        self.bottom_edge_matches = bottom_edge_matches
+        self.left_edge_matches = left_edge_matches
+
+    def set_final_edges(self, top_edge, right_edge, bottom_edge, left_edge):
+        self.top_edge_final = top_edge
+        self.right_edge_final = right_edge
+        self.bottom_edge_final = bottom_edge
+        self.left_edge_final = left_edge
 
 
 class Algorithm:
@@ -90,11 +140,8 @@ class Algorithm:
 
     def make_quadrons(self):  # function retuns done quadrons
         quadrons = self.get_quadrons()
-        # quadron_images = []
-        # for quadron in quadrons:
-        #     quadron_images.append(self.quadron_to_image(quadron, quadrons[quadron]))
+        return quadrons
 
-        # return quadron_images
 
     def quadron_to_image(self, main_piece: Piece,
                          quadron: dict) -> np.array:  # turns the pieces into images to be later viewed for testing purposes
@@ -123,31 +170,32 @@ class Algorithm:
         quadrons = {}
         i = 0
         for piece in self.pieces:
-            quadrons[piece] = {'right': [], 'bottom': [], 'top': [], 'left': []}
-            quadrons[piece]['right'] = sorted(self.pieces,
+            # quadrons[piece] = {'right': [], 'bottom': [], 'top': [], 'left': []}
+            right_edge = sorted(self.pieces,
                                               key=lambda x: edge_value_weight * self.compare_edges(
                                                   piece.right_edge,
                                                   x.left_edge) + overall_value_weight * self.compare_overall_values(
                                                   piece.overall_value, x.overall_value))
-            quadrons[piece]['right'].remove(piece)
-            quadrons[piece]['bottom'] = sorted(self.pieces,
+            right_edge.remove(piece)
+            bottom_edge = sorted(self.pieces,
                                                key=lambda x: edge_value_weight * self.compare_edges(
                                                    piece.bottom_edge,
                                                    x.top_edge) + overall_value_weight * self.compare_overall_values(
                                                    piece.overall_value, x.overall_value))
-            quadrons[piece]['bottom'].remove(piece)
-            quadrons[piece]['top'] = sorted(self.pieces,
+            bottom_edge.remove(piece)
+            top_edge = sorted(self.pieces,
                                             key=lambda x: edge_value_weight * self.compare_edges(
                                                 piece.top_edge,
                                                 x.bottom_edge) + overall_value_weight * self.compare_overall_values(
                                                 piece.overall_value, x.overall_value))
-            quadrons[piece]['top'].remove(piece)
-            quadrons[piece]['left'] = sorted(self.pieces,
+            top_edge.remove(piece)
+            left_edge = sorted(self.pieces,
                                              key=lambda x: edge_value_weight * self.compare_edges(
                                                  piece.left_edge,
                                                  x.right_edge) + overall_value_weight * self.compare_overall_values(
                                                  piece.overall_value, x.overall_value))
-            quadrons[piece]['left'].remove(piece)
+            left_edge.remove(piece)
+            quadrons[piece] = Quadron(piece, top_edge, right_edge, bottom_edge, left_edge)
             i = i + 1
             self.update_loading_bar(i, len(self.pieces), "Getting Quadrons")
 
@@ -159,22 +207,10 @@ class Algorithm:
     def update_loading_bar(self, current_progress: int, final_num: int, description: str):
         t = "█"
         a = "."
-        loading_position = ''
-        if current_progress % 5 == 0:
-            loading_position = '▁▃▅▆█'
-        elif current_progress %5 == 1:
-            loading_position = '█▁▃▅▆'
-        elif current_progress %5 == 2:
-            loading_position = '▆█▁▃▅'
-        elif current_progress %5 == 3:
-            loading_position = '▅▆█▁▃'
-        elif current_progress %5 == 4:
-            loading_position = '▃▅▆█▁'
 
         sys.stdout.write(
-            f"\r{description}[{t * current_progress}{a * (final_num - current_progress)}] | {loading_position} {current_progress}/{final_num}")
+            f"\r{description}[{t * current_progress}{a * (final_num - current_progress)}] | {current_progress}/{final_num}")
         sys.stdout.flush()
-
 
 
     def compare_edges(self, edge_one, edge_two):
@@ -205,7 +241,4 @@ img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
 algorithm = Algorithm(img, rows=9, cols=8)
 test_images = algorithm.make_quadrons()
-i = 0
-for image in test_images:
-    cv.imwrite("triplets/black_white_test/" + str(i) + ".jpg", image)
-    i = i + 1
+
