@@ -8,47 +8,37 @@ Takes an image and divided it into x rows and y columns based on the arguments g
 
 ## Descrambler
 
-Tries to fix the scrambled images back into original. For now, it solves it by comparing the corner values of each
-piece.
+Takes a scrambled image and unscrambles it.
 
-How does it work?
 
-- [ ] Tkinter interface where you can select the starting files and ending directory
-- [ ] Confirmation button for the directories
-- [ ] Pop up for information:
-    - [ ] number of rows
-    - [ ] number of columns
-    - [ ] checkbox (is it the same for all the files?)
-- [ ] Get all the pieces from the images
-- [ ] Turn them into quadrants
-- [ ] Tkinter interface for adjusting the quadrants of each image
-- [ ] Final quadrants turn into final image
+### Problems
 
-### Selecting files and ending directory
+#### Image cutting
 
-Simple interface with button for selecting the files and an ending directory. There should be a text field that displays
-the selected directories.
+Problem:
+>In the beginning, the image is divided into x rows and y columns. These variables are given by the user in the
+beginning. After multiple problems with the algorithm, several pieces seem to have been cut wrong. At least, that is the
+way they seemed.
 
-Show text inputs for numbers that give number of rows and columns. Also include a checkbox that asks if the number of
-columns and rows is the same for all the pictures. If yes, ignore. If no, make some sort of menu for specifying the
-number of rows and columns for each image.
+The debugging consisted of taking the pieces the moment they are cut and putting them back into the original order of
+the image to see if there are some irregularities. ***There didn't seem to be any though so the issue lies elsewhere!***
 
-After selecting the directories, there should be a confirmation button for the given directories!
+#### False positives
 
-### Getting the pieces
+In the initial part of putting pieces next to each other, the original algorithm seems to run into few false positives.
+I am not quite sure why some of them are the best edges instead of the real one but, the way to circumvent this would be
+to also compare the edges to more than one piece to get more of an general solution.
 
-Get all the pieces from the image and put them into quadrants. We can assume that these quadrants will not be completely
-accurate and therefore will need manual adjustments.
+### Algorithm
 
-### Manual adjustment of the quadrants
+#### Dividing of pieces
 
-Tkinter interface that allows for switching pieces in the quadrants and easy editing. Should contain indicators of which
-piece is which, which is the current quadrant and buttons for easy switching between piece on each side.
+Given a user input, the image is split into x rows and y columns, where x and y are given by user as user input. These
+are translated into into a Piece object which contains the original piece as well as a grayscale version for easier work
+in the algorithm
 
-### Final image
+#### Getting main edges
 
-We can assume that if all the quadrants are correct, the final image is easy to make. Select random quadrant as the
-center of the final image. From this center quadrant, on the x axis from each side x pieces will be added from other
-quadrants, where x is number of columns - 1. At the same time, on the y axis from each side, y pieces will be added,
-where y is number of rows -1. The final image will be twice the size of the wanted image. The actual image will have to
-be cropped out of the final image.
+The first function gets the most fitting edges for all the pieces and gives them a fitness value. These are then sorted
+so the lowest fitness value is the best piece
+
