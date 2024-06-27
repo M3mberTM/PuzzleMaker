@@ -4,42 +4,8 @@ import os
 from descrambler.helper import Helper
 from debug.debug import Debug as Debug
 from debug.logger import Logger
-
-
-class Piece:
-    """
-    - init:
-        - params:
-            - the position in the original picture
-            - the value of the piece at the index position
-
-        - variables:
-            - whole_piece
-            - index of the piece
-            - top, right, bottom and left edges
-            - average value of the whole piece
-
-    """
-
-    whole_piece = np.ndarray
-    index = int
-    gray_piece = np.ndarray
-    blur_piece = np.ndarray
-    top_edge_candidates = []
-    bottom_edge_candidates = []
-    right_edge_candidates = []
-    left_edge_candidates = []
-
-    top_right_candidates = []
-    top_left_candidates = []
-    bottom_right_candidates = []
-    bottom_left_candidates = []
-
-    def __init__(self, index, piece):
-        self.whole_piece = piece
-        self.index = index
-        self.gray_piece = cv.cvtColor(piece, cv.COLOR_BGR2GRAY)
-        self.blur_piece = cv.GaussianBlur(self.gray_piece, (5, 5), 0)  # image blur
+from descrambler.fitness_algorithm import EdgeDetection
+from descrambler.piece import Piece
 
 
 class Scramble:
@@ -180,8 +146,8 @@ class Scramble:
                 Logger.info(
                     f"Left: {piece.left_edge_candidates[0][0].index}----------{piece.left_edge_candidates[0][1]}")
 
-                total_fitness = total_fitness + piece.top_edge_candidates[0][1] + piece.bottom_edge_candidates[0][1] + \
-                                piece.right_edge_candidates[0][1] + piece.left_edge_candidates[0][1]
+                total_fitness = total_fitness + piece.top_edge_candidates[0][1] + piece.bottom_edge_candidates[0][1]
+                total_fitness = total_fitness + piece.right_edge_candidates[0][1] + piece.left_edge_candidates[0][1]
             Logger.info("------------------------------------------------------")
             Logger.info(f"Overall fitness: {total_fitness / (self.rows * self.cols * 4)}")
 
@@ -202,7 +168,8 @@ class Scramble:
         else:
             Logger.info("Pieces folder exists. Remove to update for latest pieces...")
 
-    def make_edges(self, piece: Piece):
+    @staticmethod
+    def make_edges(piece: Piece):
         dark_piece = np.zeros(piece.whole_piece.shape, dtype=int)
 
         all_rows = [[dark_piece, piece.top_edge_candidates[0][0].whole_piece, dark_piece],
@@ -218,68 +185,16 @@ class Scramble:
         return grid
 
     def overlay_pieces(self):
+        pass
+
+    def sort_edges(self):
         for piece in self.image_pieces:
-            Logger.info()
+            # sort the pieces first
+            piece.left_edge_candidates.sort(key=lambda a: a[1])
+            piece.right_edge_candidates.sort(key=lambda a: a[1])
+            piece.bottom_edge_candidates.sort(key=lambda a: a[1])
+            piece.top_edge_candidates.sort(key=lambda a: a[1])
 
     def get_piece_fitness(self):  # checks how likely each piece is to be next to each other
-
-        for piece_one in self.image_pieces:
-            Helper.get_certain_loading(current_progress=piece_one.index + 1, final_num=len(self.image_pieces),
-                                       description="Getting fitness values of piece edges: ")
-            right_edge_fit_likelihood = []
-            left_edge_fit_likelihood = []
-            top_edge_fit_likelihood = []
-            bottom_edge_fit_likelihood = []
-            for piece_two in self.image_pieces:
-                if piece_two != piece_one:  # check whether the pieces aren't the same piece
-
-                    # concatenating horizontally on both sides at once to save on computing power
-                    horizontal_edge_fit = np.concatenate(
-                        [piece_two.gray_piece, piece_one.gray_piece, piece_two.gray_piece], axis=1)
-                    horizontal_edge_likelihood = self.get_edge_fitness(horizontal_edge_fit, is_horizontal=True)
-
-                    left_edge_fit_likelihood.append((piece_two, horizontal_edge_likelihood[0]))
-
-                    right_edge_fit_likelihood.append((piece_two, horizontal_edge_likelihood[1]))
-
-                    vertical_edge_fit = np.concatenate(
-                        [piece_two.gray_piece, piece_one.gray_piece, piece_two.gray_piece])
-                    vertical_edge_likelihood = self.get_edge_fitness(vertical_edge_fit, is_horizontal=False)
-
-                    top_edge_fit_likelihood.append((piece_two, vertical_edge_likelihood[0]))
-
-                    bottom_edge_fit_likelihood.append((piece_two, vertical_edge_likelihood[1]))
-
-            piece_one.left_edge_candidates = left_edge_fit_likelihood
-            piece_one.right_edge_candidates = right_edge_fit_likelihood
-            piece_one.bottom_edge_candidates = bottom_edge_fit_likelihood
-            piece_one.top_edge_candidates = top_edge_fit_likelihood
-
-    def get_edge_fitness(self, image: np.ndarray, is_horizontal: bool) -> tuple[float, float]:
-        # image_blur = cv.GaussianBlur(image, (5, 5), 0)  # image blur
-        edges = cv.Canny(image=image, threshold1=30, threshold2=self.contrast)  # Canny Edge Detection
-
-        if is_horizontal:
-            edges_width = edges.shape[1]
-            left_edge = np.array(edges[:, (edges_width // 3) - 1: (edges_width // 3)])
-            right_edge = np.array(edges[:, (edges_width // 3) * 2 - 1: (edges_width // 3) * 2])
-
-            left_edge_length = left_edge.size
-            right_edge_length = right_edge.size
-
-            left_edge_likelihood = np.sum(left_edge) / left_edge_length
-            right_edge_likelihood = np.sum(right_edge) / right_edge_length
-
-            return left_edge_likelihood, right_edge_likelihood
-        else:
-            edges_height = edges.shape[0]
-            top_edge = np.array(edges[(edges_height // 3) - 1:(edges_height // 3)])
-            bottom_edge = np.array(edges[(edges_height // 3) * 2 - 1:(edges_height // 3) * 2])
-
-            top_edge_length = top_edge.size
-            bottom_edge_length = bottom_edge.size
-
-            top_edge_likelihood = np.sum(top_edge) / top_edge_length
-            bottom_edge_likelihood = np.sum(bottom_edge) / bottom_edge_length
-
-            return top_edge_likelihood, bottom_edge_likelihood
+        fitness_algorithm = EdgeDetection(self.image_pieces, self.contrast)
+        fitness_algorithm.get_piece_fitness()

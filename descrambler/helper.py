@@ -3,7 +3,6 @@ import time
 
 
 class Helper:
-
     timestamps = []
 
     @staticmethod
@@ -14,6 +13,8 @@ class Helper:
         sys.stdout.write(
             f"\r{description}[{t * current_progress}{a * (final_num - current_progress)}] | {current_progress}/{final_num}")
         sys.stdout.flush()
+        if current_progress == final_num:
+            print()
 
     @staticmethod
     def get_uncertain_loading(count: int, description: str):
@@ -30,4 +31,4 @@ class Helper:
         self.timestamps.append(Helper.current_milli_time())
 
     def get_latest_timestamp_difference(self):
-        return self.timestamps[len(self.timestamps)-1] - self.timestamps[len(self.timestamps)-2]
+        return self.timestamps[len(self.timestamps) - 1] - self.timestamps[len(self.timestamps) - 2]
