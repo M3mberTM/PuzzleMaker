@@ -1,4 +1,7 @@
-images
+images/pieces
+images/scrambledImages
+images/testImages
+images/unscrambledImages
 tryouts.py
 .idea
 *.iml
