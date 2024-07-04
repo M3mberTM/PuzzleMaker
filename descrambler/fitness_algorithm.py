@@ -78,4 +78,47 @@ class EdgeDetection:
 
 
 class ColorComparison:
-    pass
+    pieces = list[Piece]
+
+    def __init__(self, pieces: list[Piece]):
+        self.pieces = pieces
+
+    def get_piece_fitness(self):
+
+        for piece_one in self.pieces:
+            Helper.get_certain_loading(current_progress=piece_one.index + 1, final_num=len(self.pieces),
+                                       description="Getting fitness values of piece edges: ")
+            right_edge_fit_likelihood = []
+            left_edge_fit_likelihood = []
+            top_edge_fit_likelihood = []
+            bottom_edge_fit_likelihood = []
+
+            for piece_two in self.pieces:
+                if piece_one.index != piece_two.index:  # check whether pieces aren't the same
+
+                    right_edge_fitness = self.compare_edges(piece_one.right_edge, piece_two.left_edge)
+                    left_edge_fitness = self.compare_edges(piece_one.left_edge, piece_two.right_edge)
+                    top_edge_fitness = self.compare_edges(piece_one.top_edge, piece_two.bottom_edge)
+                    bottom_edge_fitness = self.compare_edges(piece_one.bottom_edge, piece_two.top_edge)
+
+                    right_edge_fit_likelihood.append((piece_two, right_edge_fitness))
+                    left_edge_fit_likelihood.append((piece_two, left_edge_fitness))
+                    top_edge_fit_likelihood.append((piece_two, top_edge_fitness))
+                    bottom_edge_fit_likelihood.append((piece_two, bottom_edge_fitness))
+
+            piece_one.left_edge_candidates = left_edge_fit_likelihood
+            piece_one.right_edge_candidates = right_edge_fit_likelihood
+            piece_one.bottom_edge_candidates = bottom_edge_fit_likelihood
+            piece_one.top_edge_candidates = top_edge_fit_likelihood
+
+    @staticmethod
+    def compare_edges(first_edge: np.ndarray, second_edge: np.ndarray):
+        first_edge = first_edge.astype('int')
+        second_edge = second_edge.astype('int')
+        difference = np.subtract(first_edge, second_edge)
+        squared = np.power(difference / 255.0, 2)
+        color_difference_per_row = np.sum(squared, axis=1)
+        total_difference = np.sum(color_difference_per_row, axis=0)
+
+        value = np.sqrt(total_difference)
+        return value

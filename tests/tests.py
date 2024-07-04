@@ -3,7 +3,8 @@ from descrambler.descrambler import Scramble as Scramble
 from os import listdir
 from os.path import isfile, join
 import cv2 as cv
-
+import numpy as np
+from descrambler.fitness_algorithm import ColorComparison
 
 class TestDescrambling(unittest.TestCase):
     dir_files = list
@@ -124,8 +125,22 @@ class TestDescrambling(unittest.TestCase):
             self.assertEqual((scramble.rows * scramble.cols * 4) - 2 * scramble.rows - 2 * scramble.cols, sum(results))
             print(f'Image {image} ---------- OK')
 
-    def test_fitness_func_strict(self):
-        pass
+    def test_color_comparison(self):
+        piece_one = cv.imread('../images/pieces/single/08_851131_851131_1_006_001_1.png', cv.IMREAD_COLOR)
+        piece_two = cv.imread('../images/pieces/single/08_851131_851131_1_006_001_2.png', cv.IMREAD_COLOR)
+        piece_three = cv.imread('../images/pieces/single/08_851131_851131_1_006_001_0.png', cv.IMREAD_COLOR)
+
+        rows, cols, _ = piece_one.shape
+        edge_one = piece_one[:, cols-1]
+        edge_two = piece_two[:, 0]
+        edge_three = piece_three[:, 0]
+
+        comparison_one = ColorComparison.compare_edges(edge_one, edge_two)
+        comparison_two = ColorComparison.compare_edges(edge_one, edge_three)
+
+        print(comparison_one)
+        print(comparison_two)
+        self.assertTrue(comparison_one < comparison_two)
 
     def test_closest_fitting_index(self):
 
@@ -140,6 +155,7 @@ class TestDescrambling(unittest.TestCase):
             scramble.sort_edges()
             highest_index = 0
             sum_of_indices = 0
+            all_indices = []
 
             for piece in scramble.image_pieces:
 
@@ -158,7 +174,7 @@ class TestDescrambling(unittest.TestCase):
                 if index % scramble.cols != 0:
                     correct_val = index - 1
                     result = left_edges.index(correct_val)
-                    sum_of_indices = sum_of_indices + result
+                    all_indices.append(result)
                     if result > highest_index:
                         highest_index = result
 
@@ -166,7 +182,7 @@ class TestDescrambling(unittest.TestCase):
                 if (index + 1) % scramble.cols != 0:
                     correct_val = index + 1
                     result = right_edges.index(correct_val)
-                    sum_of_indices = sum_of_indices + result
+                    all_indices.append(result)
                     if result > highest_index:
                         highest_index = result
 
@@ -174,7 +190,7 @@ class TestDescrambling(unittest.TestCase):
                 if index >= scramble.cols:
                     correct_val = index - scramble.cols
                     result = top_edges.index(correct_val)
-                    sum_of_indices = sum_of_indices + result
+                    all_indices.append(result)
                     if result > highest_index:
                         highest_index = result
 
@@ -182,12 +198,12 @@ class TestDescrambling(unittest.TestCase):
                 if index < (scramble.cols * scramble.rows) - scramble.cols:
                     correct_val = index + scramble.cols
                     result = bottom_edges.index(correct_val)
-                    sum_of_indices = sum_of_indices + result
+                    all_indices.append(result)
                     if result > highest_index:
                         highest_index = result
 
             worst_indices.append(highest_index)  # append the highest index for an image
-            average_indices.append(sum_of_indices / len(scramble.image_pieces))
+            average_indices.append(np.sum(all_indices) / len(all_indices))
         print(f'Worst: {worst_indices}')
         print(f'Average: {average_indices}')
 

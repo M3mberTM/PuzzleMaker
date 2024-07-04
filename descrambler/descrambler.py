@@ -4,7 +4,7 @@ import os
 from descrambler.helper import Helper
 from debug.debug import Debug as Debug
 from debug.logger import Logger
-from descrambler.fitness_algorithm import EdgeDetection
+from descrambler.fitness_algorithm import ColorComparison
 from descrambler.piece import Piece
 
 
@@ -50,17 +50,20 @@ class Scramble:
 
         Logger.info(f"Contrast of image: {self.contrast}")
 
-        if not os.path.exists("../images/pieces/single"):
+        if not os.path.exists(
+                "C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\pieces\\single"):
             Logger.info("\nPieces folder doesn't exist")
             Logger.info("MAKING PIECES FOLDER...")
-            os.makedirs("../images/pieces/single")
+            os.makedirs("C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\pieces\\single")
             Logger.info("FOLDER 'pieces/single' MADE")
 
             Logger.info("\nPUTTING PIECES INTO FOLDER")
             for piece in self.image_pieces:
                 Helper.get_certain_loading(current_progress=piece.index + 1, final_num=len(self.image_pieces),
                                            description="Loading pieces")
-                cv.imwrite(f'pieces/single/{self.img_name}_{piece.index}.png', piece.whole_piece)
+                cv.imwrite(
+                    f'C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\pieces\\single\\{self.img_name}_{piece.index}.png',
+                    piece.whole_piece)
 
             Logger.info("\nPIECES PUT INTO FOLDER 'pieces/single'")
         else:
@@ -151,10 +154,11 @@ class Scramble:
             Logger.info("------------------------------------------------------")
             Logger.info(f"Overall fitness: {total_fitness / (self.rows * self.cols * 4)}")
 
-        if not os.path.exists("../images/pieces/edges"):
+        if not os.path.exists(
+                "C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\pieces\\edges"):
             Logger.info("\nEdge pieces folder doesn't exist")
             Logger.info("MAKING EDGE PIECES FOLDER...")
-            os.makedirs("../images/pieces/edges")
+            os.makedirs("C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\pieces\\edges")
             Logger.info("FOLDER 'pieces/edges' MADE")
 
             Logger.info("\nPUTTING PIECES INTO FOLDER")
@@ -162,11 +166,13 @@ class Scramble:
                 Helper.get_certain_loading(current_progress=piece.index + 1, final_num=len(self.image_pieces),
                                            description="Loading pieces")
                 edges = self.make_edges(piece)
-                cv.imwrite(f'pieces/edges/{self.img_name}_{piece.index}.png', edges)
+                cv.imwrite(
+                    f'C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\pieces\\edges\\{self.img_name}_{piece.index}.png',
+                    edges)
 
-            Logger.info("\nPIECES PUT INTO FOLDER 'pieces/single'")
+            Logger.info("\nPIECES PUT INTO FOLDER 'pieces/single/edges'")
         else:
-            Logger.info("Pieces folder exists. Remove to update for latest pieces...")
+            Logger.info("Edges folder exists. Remove to update for latest pieces...")
 
     @staticmethod
     def make_edges(piece: Piece):
@@ -196,5 +202,6 @@ class Scramble:
             piece.top_edge_candidates.sort(key=lambda a: a[1])
 
     def get_piece_fitness(self):  # checks how likely each piece is to be next to each other
-        fitness_algorithm = EdgeDetection(self.image_pieces, self.contrast)
+        # fitness_algorithm = EdgeDetection(self.image_pieces, self.contrast)
+        fitness_algorithm = ColorComparison(self.image_pieces)
         fitness_algorithm.get_piece_fitness()
