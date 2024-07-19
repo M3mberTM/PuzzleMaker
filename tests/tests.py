@@ -1,5 +1,5 @@
 import unittest
-from descrambler.descrambler import Scramble as Scramble
+from descrambler.scramble import Scramble as Scramble
 from os import listdir
 from os.path import isfile, join
 import cv2 as cv
@@ -40,6 +40,7 @@ class TestDescrambling(unittest.TestCase):
 
     def test_img_num(self):
         self.assertEqual(len(self.dir_files), len(self.images), "Some images didn't pass the tests")
+
 
     def test_img_cutting(self):
         for image in self.images:

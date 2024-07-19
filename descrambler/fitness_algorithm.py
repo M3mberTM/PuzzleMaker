@@ -3,6 +3,7 @@ import numpy as np
 
 from descrambler.piece import Piece
 from descrambler.helper import Helper
+from descrambler.candidate import Candidate
 
 
 class EdgeDetection:
@@ -101,10 +102,10 @@ class ColorComparison:
                     top_edge_fitness = self.compare_edges(piece_one.top_edge, piece_two.bottom_edge)
                     bottom_edge_fitness = self.compare_edges(piece_one.bottom_edge, piece_two.top_edge)
 
-                    right_edge_fit_likelihood.append((piece_two, right_edge_fitness))
-                    left_edge_fit_likelihood.append((piece_two, left_edge_fitness))
-                    top_edge_fit_likelihood.append((piece_two, top_edge_fitness))
-                    bottom_edge_fit_likelihood.append((piece_two, bottom_edge_fitness))
+                    right_edge_fit_likelihood.append(Candidate(piece_two, right_edge_fitness))
+                    left_edge_fit_likelihood.append(Candidate(piece_two, left_edge_fitness))
+                    top_edge_fit_likelihood.append(Candidate(piece_two, top_edge_fitness))
+                    bottom_edge_fit_likelihood.append(Candidate(piece_two, bottom_edge_fitness))
 
             piece_one.left_edge_candidates = left_edge_fit_likelihood
             piece_one.right_edge_candidates = right_edge_fit_likelihood
@@ -112,7 +113,7 @@ class ColorComparison:
             piece_one.top_edge_candidates = top_edge_fit_likelihood
 
     @staticmethod
-    def compare_edges(first_edge: np.ndarray, second_edge: np.ndarray):
+    def compare_edges(first_edge: np.ndarray, second_edge: np.ndarray) -> float:
         first_edge = first_edge.astype('int')
         second_edge = second_edge.astype('int')
         difference = np.subtract(first_edge, second_edge)

@@ -1,3 +1,3 @@
 
 class Debug:
-    DEBUG = False
+    DEBUG = True

@@ -1,11 +1,15 @@
+import os
+
 import cv2 as cv
 import numpy as np
-import os
-from descrambler.helper import Helper
+
 from debug.debug import Debug as Debug
 from debug.logger import Logger
+from descrambler.candidate import Candidate
 from descrambler.fitness_algorithm import ColorComparison
+from descrambler.helper import Helper
 from descrambler.piece import Piece
+from descrambler.edge import Edge
 
 
 class Scramble:
@@ -33,6 +37,7 @@ class Scramble:
     image_pieces = []
     contrast = None
     helper = Helper()
+    counter = 0
 
     def __init__(self, path, rows, cols):
         self.helper.add_timestamp()
@@ -110,6 +115,19 @@ class Scramble:
                 index = index + 1
         return pieces
 
+    def make_image(self, image_arr: list[list[Piece]]):
+        all_rows = []
+        for i in range(self.rows):
+            row_images = []
+            for x in range(self.cols):
+                row_images.append(image_arr[i][x].whole_piece)
+
+            row = np.concatenate(row_images, axis=1)
+            all_rows.append(row)
+
+        grid = np.concatenate(all_rows)
+        return grid
+
     def solve(self):
         Logger.info("\n-----SOLVING ALGORITHM-----")
         self.helper.add_timestamp()
@@ -120,59 +138,28 @@ class Scramble:
         Logger.info("\nFITNESS VALUES CALCULATED")
         self.helper.add_timestamp()
         Logger.info(f'CALCULATING EDGE FITNESS VALUES: {self.helper.get_latest_timestamp_difference()} ms')
+        Logger.info(f'Solving the image now')
+        result = self.solve_image(0, [], [])
+        print('results')
+        index_candidates = list(map(lambda x: x.piece.index), result)
+        print(index_candidates)
 
-        # get the corners based on the made pieces already
-        # self.get_corners_fitness()
+        if len(result) > 0:
+            # create the rows first
+            rows = []
+            for i in range(self.rows):
+                rows.append(result[i * self.cols: (i + 1) * self.cols])
+        piece_arr = []
+        for row in rows:
+            piece_arr.append(list(map(lambda x: x.piece, row)))
 
-        # review the edge pieces using the corner pieces
-        # self.review_edge_fitness()
-
-        if Debug.DEBUG:
-
-            total_fitness = 0
-            for piece in self.image_pieces:
-                # sort the pieces first
-                piece.left_edge_candidates.sort(key=lambda a: a[1])
-                piece.right_edge_candidates.sort(key=lambda a: a[1])
-                piece.bottom_edge_candidates.sort(key=lambda a: a[1])
-                piece.top_edge_candidates.sort(key=lambda a: a[1])
-
-                Logger.info(f"----------------Piece {piece.index}----------------")
-                Logger.info(f"Top: {piece.top_edge_candidates[0][0].index}----------{piece.top_edge_candidates[0][1]}")
-
-                Logger.info(
-                    f"Bottom: {piece.bottom_edge_candidates[0][0].index}----------{piece.bottom_edge_candidates[0][1]}")
-
-                Logger.info(
-                    f"Right: {piece.right_edge_candidates[0][0].index}----------{piece.right_edge_candidates[0][1]}")
-
-                Logger.info(
-                    f"Left: {piece.left_edge_candidates[0][0].index}----------{piece.left_edge_candidates[0][1]}")
-
-                total_fitness = total_fitness + piece.top_edge_candidates[0][1] + piece.bottom_edge_candidates[0][1]
-                total_fitness = total_fitness + piece.right_edge_candidates[0][1] + piece.left_edge_candidates[0][1]
-            Logger.info("------------------------------------------------------")
-            Logger.info(f"Overall fitness: {total_fitness / (self.rows * self.cols * 4)}")
-
-        if not os.path.exists(
-                "C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\pieces\\edges"):
-            Logger.info("\nEdge pieces folder doesn't exist")
-            Logger.info("MAKING EDGE PIECES FOLDER...")
-            os.makedirs("C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\pieces\\edges")
-            Logger.info("FOLDER 'pieces/edges' MADE")
-
-            Logger.info("\nPUTTING PIECES INTO FOLDER")
-            for piece in self.image_pieces:
-                Helper.get_certain_loading(current_progress=piece.index + 1, final_num=len(self.image_pieces),
-                                           description="Loading pieces")
-                edges = self.make_edges(piece)
-                cv.imwrite(
-                    f'C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\pieces\\edges\\{self.img_name}_{piece.index}.png',
-                    edges)
-
-            Logger.info("\nPIECES PUT INTO FOLDER 'pieces/single/edges'")
-        else:
-            Logger.info("Edges folder exists. Remove to update for latest pieces...")
+        final_img = self.make_image(piece_arr)
+        cv.imshow("final image", final_img)
+        cv.waitKey(0)
+        cv.destroyAllWindows()
+        cv.imwrite(
+            "C:\\Users\\risko\\Documents\\Coding\\Python\\myProjects\\PuzzleMaker\\images\\unscrambledImages\\finished.png",
+            final_img)
 
     @staticmethod
     def make_edges(piece: Piece):
@@ -190,9 +177,6 @@ class Scramble:
         grid = np.concatenate(row_images)
         return grid
 
-    def overlay_pieces(self):
-        pass
-
     def sort_edges(self):
         for piece in self.image_pieces:
             # sort the pieces first
@@ -205,3 +189,78 @@ class Scramble:
         # fitness_algorithm = EdgeDetection(self.image_pieces, self.contrast)
         fitness_algorithm = ColorComparison(self.image_pieces)
         fitness_algorithm.get_piece_fitness()
+
+    def get_possible_edge_indices(self, col: int) -> list[int]:
+        possible_indices = []
+        if col + 1 % self.cols != 0:
+            possible_indices.append(col + 1)
+
+        if col > self.cols - 1:
+            possible_indices.append(col - self.cols)
+        return possible_indices
+
+    def solve_image(self, col: int, state: list[Candidate], used_pieces: list[int]) -> list:
+
+        threshold = 10
+        print(f'Used pieces: {used_pieces}')
+        self.counter = self.counter + 1
+
+        # finishing condition
+        if col > self.cols * self.rows - 1:
+            print(f'Went over {self.counter} pieces')
+            return state
+
+        if col == 0:
+            # randomly choose the first piece from all the pieces
+            for piece in self.image_pieces:
+                # first convert the piece to a candidate to be able to use it in the algorithm
+                piece_to_candidate = Candidate(piece, fitness_value=0)
+                result = self.solve_image(col=col + 1, state=[piece_to_candidate],
+                                          used_pieces=[piece_to_candidate.piece.index])
+                if len(result) > 0:
+                    return result
+
+            return []
+        else:
+            if col % self.cols == 0:
+                # the piece is in the beginning of the row and therefore there is no piece before it in the row
+                # take the first piece of the row before and go through the bottom candidates
+                # the piece from which the candidates will be taken for the next piece
+                candidate_piece = state[col - self.cols]
+                sorted_candidates = candidate_piece.piece.get_sorted_candidates(Edge.BOTTOM)
+                possible_candidates = list(filter(lambda x: x.fitness_value < threshold, sorted_candidates))
+                for candidate in possible_candidates:
+                    if candidate.piece.index not in set(used_pieces):
+                        new_state = state + [candidate]
+                        new_used = used_pieces + [candidate.piece.index]
+                        result = self.solve_image(col=col + 1, state=new_state, used_pieces=new_used)
+                        if len(result) > 0:
+                            return result
+                return []
+            else:
+                # the piece is somewhere in the image where it always has a piece before it
+                # the piece from which the candidates will be taken for the next piece
+                candidate_piece = state[col - 1]
+                sorted_candidates = candidate_piece.piece.get_sorted_candidates(Edge.RIGHT)
+                possible_candidates = list(filter(lambda x: x.fitness_value < threshold, sorted_candidates))
+                for candidate in possible_candidates:
+                    if candidate.piece.index not in set(used_pieces):
+                        # check if the piece is in a different row than the first one, if yes, compare more edges
+                        passes_top_edge = True
+                        if col > self.cols:
+                            top_edge = state[col - self.cols]
+                            for edge_candidate in top_edge.piece.get_sorted_candidates(Edge.BOTTOM):
+                                if edge_candidate.fitness_value > threshold:
+                                    passes_top_edge = False
+                                    break
+                                if edge_candidate.piece.index == candidate.piece.index:
+                                    break
+                                passes_top_edge = False
+
+                        if passes_top_edge:
+                            new_state = state + [candidate]
+                            new_used = used_pieces + [candidate.piece.index]
+                            result = self.solve_image(col=col + 1, state=new_state, used_pieces=new_used)
+                            if len(result) > 0:
+                                return result
+                return []
